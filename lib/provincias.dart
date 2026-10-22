@@ -1,0 +1,28 @@
+/// Jurisdicciones de radicación. Se comparan con las opciones del estimador
+/// sin tener en cuenta acentos ni mayúsculas.
+const provincias = [
+  'BUENOS AIRES',
+  'CIUDAD AUTONOMA DE BUENOS AIRES',
+  'CATAMARCA',
+  'CHACO',
+  'CHUBUT',
+  'CORDOBA',
+  'CORRIENTES',
+  'ENTRE RIOS',
+  'FORMOSA',
+  'JUJUY',
+  'LA PAMPA',
+  'LA RIOJA',
+  'MENDOZA',
+  'MISIONES',
+  'NEUQUEN',
+  'RIO NEGRO',
+  'SALTA',
+  'SAN JUAN',
+  'SAN LUIS',
+  'SANTA CRUZ',
+  'SANTA FE',
+  'SANTIAGO DEL ESTERO',
+  'TIERRA DEL FUEGO',
+  'TUCUMAN',
+];
