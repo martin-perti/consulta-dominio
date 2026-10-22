@@ -43,6 +43,7 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
+          echo "ANDROID_USER_HOME=${ANDROID_USER_HOME:-} ANDROID_SDK_HOME=${ANDROID_SDK_HOME:-}"
           mkdir -p ~/.android
           if [ -n "$KEYSTORE_BASE64" ]; then
             echo "$KEYSTORE_BASE64" | base64 -d > ~/.android/debug.keystore
@@ -76,6 +77,9 @@ jobs:
 
       - name: Armar APK
         env:
+          # Que Gradle tome la clave de ~/.android y no la de otra carpeta
+          # que tenga configurada la máquina de GitHub.
+          ANDROID_USER_HOME: /home/runner/.android
           SHEETS_URL: ${{ secrets.SHEETS_URL }}
           SHEETS_TOKEN: ${{ secrets.SHEETS_TOKEN }}
         run: |
