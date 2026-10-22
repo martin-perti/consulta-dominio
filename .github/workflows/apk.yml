@@ -40,6 +40,14 @@ jobs:
           rm -f test/widget_test.dart
           # Permiso de internet también en la versión de release.
           sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/>\n    <application|' android/app/src/main/AndroidManifest.xml
+          # ML Kit referencia reconocedores de otros alfabetos que no usamos;
+          # sin esto R8 corta el armado del release por clases faltantes.
+          printf '%s\n' \
+            '-dontwarn com.google.mlkit.vision.text.chinese.**' \
+            '-dontwarn com.google.mlkit.vision.text.devanagari.**' \
+            '-dontwarn com.google.mlkit.vision.text.japanese.**' \
+            '-dontwarn com.google.mlkit.vision.text.korean.**' \
+            >> android/app/proguard-rules.pro
           # Nombre visible en el celular.
           sed -i 's|android:label="[^"]*"|android:label="Consulta dominio"|' android/app/src/main/AndroidManifest.xml
 
