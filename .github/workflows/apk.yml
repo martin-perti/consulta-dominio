@@ -1,0 +1,77 @@
+# Arma el instalador de Android (APK) y lo publica en Releases como
+# "Última versión", para bajarlo directo desde el celular.
+#
+# La planilla se conecta con dos secretos del repositorio (opcionales):
+# Settings > Secrets and variables > Actions > SHEETS_URL y SHEETS_TOKEN.
+name: APK Android
+
+on:
+  push:
+    branches: [main, prototipo-app]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generar carpeta de Android
+        run: |
+          flutter create --platforms android --org ar.consultadominio --project-name consulta_dominio .
+          # La plantilla trae una prueba de ejemplo que no aplica a esta app.
+          rm -f test/widget_test.dart
+          # Permiso de internet también en la versión de release.
+          sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/>\n    <application|' android/app/src/main/AndroidManifest.xml
+          # Nombre visible en el celular.
+          sed -i 's|android:label="[^"]*"|android:label="Consulta dominio"|' android/app/src/main/AndroidManifest.xml
+
+      - name: Análisis y pruebas
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+
+      - name: Armar APK
+        env:
+          SHEETS_URL: ${{ secrets.SHEETS_URL }}
+          SHEETS_TOKEN: ${{ secrets.SHEETS_TOKEN }}
+        run: |
+          flutter build apk --release \
+            --dart-define=SHEETS_URL="$SHEETS_URL" \
+            --dart-define=SHEETS_TOKEN="$SHEETS_TOKEN"
+          cp build/app/outputs/flutter-apk/app-release.apk consulta-dominio.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: consulta-dominio-apk
+          path: consulta-dominio.apk
+
+      - name: Publicar en Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ultima-version
+          name: Última versión
+          target_commitish: ${{ github.sha }}
+          prerelease: true
+          files: consulta-dominio.apk
+          body: |
+            Instalador de Android armado desde `${{ github.ref_name }}` (${{ github.sha }}).
+            Bajá `consulta-dominio.apk` desde el celular e instalalo.
