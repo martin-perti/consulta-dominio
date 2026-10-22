@@ -29,18 +29,18 @@ class ResultadoEstimador {
   final double? arancelTotal;
 
   Map<String, Object?> toJson() => {
-        'dominio': dominio,
-        'tramite': tramite,
-        'tipoVehiculo': tipoVehiculo,
-        'marca': marca,
-        'modelo': modelo,
-        'tipo': tipo,
-        'anio': anio,
-        'origen': origen,
-        'valorTabla': valorTabla,
-        'provincia': provincia,
-        'arancelTotal': arancelTotal,
-      };
+    'dominio': dominio,
+    'tramite': tramite,
+    'tipoVehiculo': tipoVehiculo,
+    'marca': marca,
+    'modelo': modelo,
+    'tipo': tipo,
+    'anio': anio,
+    'origen': origen,
+    'valorTabla': valorTabla,
+    'provincia': provincia,
+    'arancelTotal': arancelTotal,
+  };
 }
 
 /// Lo que junta el JavaScript de la página de resultado: las celdas de cada
@@ -50,15 +50,15 @@ class DatosPagina {
   const DatosPagina({required this.tablas, required this.hojas});
 
   factory DatosPagina.fromJson(Map<String, dynamic> json) => DatosPagina(
-        tablas: [
-          for (final t in (json['tablas'] as List? ?? const []))
-            [
-              for (final fila in (t as List))
-                [for (final c in (fila as List)) c.toString()],
-            ],
+    tablas: [
+      for (final t in (json['tablas'] as List? ?? const []))
+        [
+          for (final fila in (t as List))
+            [for (final c in (fila as List)) c.toString()],
         ],
-        hojas: [for (final h in (json['hojas'] as List? ?? const [])) h.toString()],
-      );
+    ],
+    hojas: [for (final h in (json['hojas'] as List? ?? const [])) h.toString()],
+  );
 
   final List<List<List<String>>> tablas;
   final List<String> hojas;
@@ -113,9 +113,9 @@ Map<String, String> _pares(List<String> celdas) {
 /// columnas "Descripción" y "Total".
 double? _arancelTotal(List<List<List<String>>> tablas) {
   for (final tabla in tablas) {
-    final encabezados =
-        tabla.expand((f) => f).map(normalizarEtiqueta).toSet();
-    if (!encabezados.contains('descripcion') || !encabezados.contains('total')) {
+    final encabezados = tabla.expand((f) => f).map(normalizarEtiqueta).toSet();
+    if (!encabezados.contains('descripcion') ||
+        !encabezados.contains('total')) {
       continue;
     }
     for (final fila in tabla.reversed) {
@@ -143,15 +143,18 @@ ResultadoEstimador? interpretarResultado(DatosPagina datos, String dominio) {
 
   final anioOrigen = (p['anioOrigen'] ?? '').split('/');
   final anio = int.tryParse(anioOrigen.first.trim());
-  final origen = anioOrigen.length > 1 ? anioOrigen.sublist(1).join('/').trim() : '';
+  final origen = anioOrigen.length > 1
+      ? anioOrigen.sublist(1).join('/').trim()
+      : '';
 
   final tramite = p['tramite'] ?? '';
   final t = normalizarEtiqueta(tramite);
-  final tipoVehiculo = t.contains('moto')
+  // "automotor" también contiene "moto": se busca al principio de palabra.
+  final tipoVehiculo = RegExp(r'\bmoto').hasMatch(t)
       ? 'Moto'
       : t.contains('automotor')
-          ? 'Auto'
-          : '';
+      ? 'Auto'
+      : '';
 
   return ResultadoEstimador(
     dominio: dominio,
