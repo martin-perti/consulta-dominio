@@ -96,7 +96,8 @@ return 'listo';
 
 /// Devuelve un JSON con las tablas y los textos de la página, o "" si
 /// todavía no apareció el resultado.
-const jsLeerResultado = '''
+const jsLeerResultado =
+    '''
 (function() {
 $_comunes
 var texto = norm(document.body.innerText);

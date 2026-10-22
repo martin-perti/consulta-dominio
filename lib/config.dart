@@ -4,8 +4,7 @@
 ///   flutter run --dart-define=SHEETS_URL=https://script.google.com/... \
 ///               --dart-define=SHEETS_TOKEN=mi-clave
 class Config {
-  static const estimadorUrl =
-      'https://www2.jus.gov.ar/dnrpa-site/#!/estimador';
+  static const estimadorUrl = 'https://www2.jus.gov.ar/dnrpa-site/#!/estimador';
 
   /// Valor declarado fijo. El arancel se calcula sobre el mayor entre este
   /// valor y el de tabla, así que con un valor bajo siempre aparece el de tabla.

@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../ajustes.dart';
 import '../resultado.dart';
 import '../sheets.dart';
 
 /// Muestra los datos del vehículo y los guarda en la planilla.
 class ResultadoPage extends StatefulWidget {
-  const ResultadoPage({required this.resultado, SheetsClient? sheets, super.key})
-      : _sheets = sheets;
+  const ResultadoPage({
+    required this.resultado,
+    SheetsClient? sheets,
+    super.key,
+  }) : _sheets = sheets;
 
   final ResultadoEstimador resultado;
   final SheetsClient? _sheets;
@@ -18,6 +21,7 @@ class ResultadoPage extends StatefulWidget {
 
 class _ResultadoPageState extends State<ResultadoPage> {
   late final SheetsClient _sheets = widget._sheets ?? SheetsClient();
+  bool? _configurado;
   bool _guardando = false;
   int? _indice;
   String? _error;
@@ -25,7 +29,7 @@ class _ResultadoPageState extends State<ResultadoPage> {
   @override
   void initState() {
     super.initState();
-    if (_sheets.configurado) _guardar();
+    _guardar();
   }
 
   Future<void> _guardar() async {
@@ -34,11 +38,11 @@ class _ResultadoPageState extends State<ResultadoPage> {
       _error = null;
     });
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final indice = await _sheets.guardar(
-        widget.resultado,
-        usuario: prefs.getString('usuario') ?? '',
-      );
+      final ajustes = await Ajustes.cargar();
+      if (!mounted) return;
+      setState(() => _configurado = ajustes.planillaConfigurada);
+      if (!ajustes.planillaConfigurada) return;
+      final indice = await _sheets.guardar(widget.resultado, ajustes);
       if (mounted) setState(() => _indice = indice);
     } on Exception catch (e) {
       if (mounted) setState(() => _error = e.toString());
@@ -95,8 +99,11 @@ class _ResultadoPageState extends State<ResultadoPage> {
   }
 
   Widget _estadoPlanilla(BuildContext context) {
-    if (!_sheets.configurado) {
-      return const Text('La planilla no está configurada (ver README).');
+    if (_configurado == false) {
+      return const Text(
+        'No se guardó: falta conectar la planilla (ícono de ajustes en la '
+        'pantalla inicial).',
+      );
     }
     if (_guardando) {
       return const ListTile(

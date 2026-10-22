@@ -26,6 +26,8 @@ Solo se leen y guardan datos del **vehículo**; el estimador no muestra datos de
    - Quién tiene acceso: *Cualquier usuario*
    - Implementar y copiar la URL que termina en `/exec`.
 
+6. En la app, tocá el ícono de **ajustes** (arriba a la derecha), pegá el link en "Link de la planilla" y la clave del paso 4 en "Clave de la planilla". Guardá.
+
 La hoja "Consultas" se crea sola con la primera consulta, con estas columnas:
 
 `# | Fecha y hora | Dominio | Auto/Moto | Marca | Modelo | Tipo | Año | Origen | Valor tabla | Arancel total | Provincia | Trámite | Usuario`

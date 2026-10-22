@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../ajustes.dart';
 import '../config.dart';
 import '../dominio.dart';
 import '../provincias.dart';
@@ -68,35 +68,16 @@ class _ConsultaPageState extends State<ConsultaPage> {
     );
   }
 
-  Future<void> _editarUsuario() async {
-    final prefs = await SharedPreferences.getInstance();
+  Future<void> _abrirAjustes() async {
+    final actuales = await Ajustes.cargar();
     if (!mounted) return;
-    final ctrl = TextEditingController(text: prefs.getString('usuario') ?? '');
-    final nombre = await showDialog<String>(
+    final nuevos = await showDialog<Ajustes>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Tu nombre'),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          decoration: const InputDecoration(
-            helperText: 'Se guarda en la planilla junto a cada consulta.',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, ctrl.text.trim()),
-            child: const Text('Guardar'),
-          ),
-        ],
-      ),
+      builder: (_) => _AjustesDialog(actuales: actuales),
     );
-    ctrl.dispose();
-    if (nombre != null) await prefs.setString('usuario', nombre);
+    if (nuevos == null) return;
+    await nuevos.guardar();
+    if (mounted) _avisar('Ajustes guardados.');
   }
 
   void _avisar(String texto) {
@@ -110,9 +91,9 @@ class _ConsultaPageState extends State<ConsultaPage> {
         title: const Text('Consulta por dominio'),
         actions: [
           IconButton(
-            tooltip: 'Tu nombre',
-            icon: const Icon(Icons.person_outline),
-            onPressed: _editarUsuario,
+            tooltip: 'Ajustes',
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: _abrirAjustes,
           ),
         ],
       ),
@@ -171,6 +152,84 @@ class _ConsultaPageState extends State<ConsultaPage> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _AjustesDialog extends StatefulWidget {
+  const _AjustesDialog({required this.actuales});
+
+  final Ajustes actuales;
+
+  @override
+  State<_AjustesDialog> createState() => _AjustesDialogState();
+}
+
+class _AjustesDialogState extends State<_AjustesDialog> {
+  late final _usuario = TextEditingController(text: widget.actuales.usuario);
+  late final _url = TextEditingController(text: widget.actuales.sheetsUrl);
+  late final _token = TextEditingController(text: widget.actuales.sheetsToken);
+
+  @override
+  void dispose() {
+    _usuario.dispose();
+    _url.dispose();
+    _token.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Ajustes'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _usuario,
+              decoration: const InputDecoration(
+                labelText: 'Tu nombre',
+                helperText: 'Se guarda en la planilla con cada consulta.',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _url,
+              keyboardType: TextInputType.url,
+              decoration: const InputDecoration(
+                labelText: 'Link de la planilla',
+                hintText: 'https://script.google.com/macros/s/.../exec',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _token,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Clave de la planilla',
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(
+            context,
+            Ajustes(
+              usuario: _usuario.text.trim(),
+              sheetsUrl: _url.text.trim(),
+              sheetsToken: _token.text.trim(),
+            ),
+          ),
+          child: const Text('Guardar'),
+        ),
+      ],
     );
   }
 }
