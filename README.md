@@ -2,6 +2,13 @@
 
 App para Android e iOS: ingresás un dominio (o le sacás una foto a la patente), la app completa el **estimador de costos de la DNRPA** y guarda en una **planilla de Google** la marca, modelo, tipo, año, origen, valor de tabla y arancel, con número correlativo y fecha.
 
+## Instalar en Android
+
+Desde el celular, abrí en **Chrome** (no desde otra app):
+https://github.com/martin-perti/consulta-dominio/releases/latest/download/consulta-dominio.apk
+
+Ese link siempre baja la última versión. Para actualizar, bajala e instalala encima: los datos y los ajustes se mantienen.
+
 ## Cómo funciona
 
 1. **Consulta**: escribís el dominio o tocás la cámara para leer la patente (el texto se reconoce en el teléfono con ML Kit). Elegís la provincia de radicación (Buenos Aires por defecto).
@@ -26,7 +33,7 @@ Solo se leen y guardan datos del **vehículo**; el estimador no muestra datos de
    - Quién tiene acceso: *Cualquier usuario*
    - Implementar y copiar la URL que termina en `/exec`.
 
-6. En la app, tocá el ícono de **ajustes** (arriba a la derecha), pegá el link en "Link de la planilla" y la clave del paso 4 en "Clave de la planilla". Guardá.
+6. En la app, tocá el ícono de **ajustes** (arriba a la derecha), pegá el link en "Link de la planilla" y la clave del paso 4 en "Clave de la planilla". Tocá **Probar conexión**: tiene que decir "Planilla conectada". Guardá.
 
 La hoja "Consultas" se crea sola con la primera consulta, con estas columnas:
 
@@ -91,6 +98,10 @@ flutter test
 ## Si la DNRPA cambia la página
 
 La app busca los campos por su texto (TRANSFERENCIA, PATENTE, VALOR, CONTINUAR) y las etiquetas del resultado (Marca, Modelo, Tipo, Año / Origen, Valor Tabla). Si algo cambia, la app avisa "No pude leer los datos" en lugar de guardar algo incorrecto, y el ajuste se hace en `lib/estimador_js.dart` o `lib/resultado.dart`.
+
+## Firma del instalador
+
+Android solo deja actualizar una app si todas las versiones están firmadas con la misma clave. Por eso el armado usa una clave fija (`firma/debug.keystore`). Como el repositorio es público, esa clave también lo es: alcanza para uso propio, pero para distribuir la app a otras personas conviene una clave privada guardada como secreto `ANDROID_KEYSTORE_BASE64` en Settings > Secrets and variables > Actions (el armado la usa automáticamente si existe).
 
 ## Uso responsable
 

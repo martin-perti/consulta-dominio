@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -7,6 +8,7 @@ import '../config.dart';
 import '../dominio.dart';
 import '../provincias.dart';
 import '../resultado.dart';
+import '../sheets.dart';
 import 'estimador_page.dart';
 import 'resultado_page.dart';
 
@@ -30,7 +32,17 @@ class _ConsultaPageState extends State<ConsultaPage> {
   }
 
   Future<void> _sacarFoto() async {
-    final foto = await ImagePicker().pickImage(source: ImageSource.camera);
+    final XFile? foto;
+    try {
+      // Una foto más chica alcanza para leer la patente y se procesa rápido.
+      foto = await ImagePicker().pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1600,
+      );
+    } on PlatformException {
+      if (mounted) _avisar('No pude abrir la cámara. Revisá los permisos.');
+      return;
+    }
     if (foto == null) return;
     setState(() => _leyendoFoto = true);
     final lector = TextRecognizer();
@@ -48,6 +60,8 @@ class _ConsultaPageState extends State<ConsultaPage> {
         _dominio.text = dominio;
         _avisar('Leí $dominio. Revisala antes de verificar.');
       }
+    } on Exception {
+      if (mounted) _avisar('No pude leer la foto. Probá de nuevo o escribila.');
     } finally {
       await lector.close();
       if (mounted) setState(() => _leyendoFoto = false);
@@ -169,6 +183,31 @@ class _AjustesDialogState extends State<_AjustesDialog> {
   late final _usuario = TextEditingController(text: widget.actuales.usuario);
   late final _url = TextEditingController(text: widget.actuales.sheetsUrl);
   late final _token = TextEditingController(text: widget.actuales.sheetsToken);
+  bool _probando = false;
+  String? _estadoPrueba;
+  bool _pruebaOk = false;
+
+  Ajustes get _ajustes => Ajustes(
+    usuario: _usuario.text.trim(),
+    sheetsUrl: _url.text.trim(),
+    sheetsToken: _token.text.trim(),
+  );
+
+  Future<void> _probar() async {
+    setState(() {
+      _probando = true;
+      _estadoPrueba = null;
+    });
+    try {
+      await SheetsClient().probar(_ajustes);
+      _pruebaOk = true;
+      _estadoPrueba = 'Planilla conectada.';
+    } on SheetsException catch (e) {
+      _pruebaOk = false;
+      _estadoPrueba = e.mensaje;
+    }
+    if (mounted) setState(() => _probando = false);
+  }
 
   @override
   void dispose() {
@@ -210,6 +249,32 @@ class _AjustesDialogState extends State<_AjustesDialog> {
                 labelText: 'Clave de la planilla',
               ),
             ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: OutlinedButton.icon(
+                onPressed: _probando ? null : _probar,
+                icon: _probando
+                    ? const SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.wifi_tethering),
+                label: const Text('Probar conexión'),
+              ),
+            ),
+            if (_estadoPrueba != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  _estadoPrueba!,
+                  style: TextStyle(
+                    color: _pruebaOk
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.error,
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -219,14 +284,7 @@ class _AjustesDialogState extends State<_AjustesDialog> {
           child: const Text('Cancelar'),
         ),
         FilledButton(
-          onPressed: () => Navigator.pop(
-            context,
-            Ajustes(
-              usuario: _usuario.text.trim(),
-              sheetsUrl: _url.text.trim(),
-              sheetsToken: _token.text.trim(),
-            ),
-          ),
+          onPressed: () => Navigator.pop(context, _ajustes),
           child: const Text('Guardar'),
         ),
       ],

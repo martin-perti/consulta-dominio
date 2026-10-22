@@ -1,5 +1,6 @@
-# Arma el instalador de Android (APK) y lo publica en Releases como
-# "Última versión", para bajarlo directo desde el celular.
+# Arma el instalador de Android (APK) y lo publica como una versión nueva en
+# Releases. El link de descarga de siempre apunta a la última:
+# https://github.com/martin-perti/consulta-dominio/releases/latest/download/consulta-dominio.apk
 #
 # La planilla se conecta con dos secretos del repositorio (opcionales):
 # Settings > Secrets and variables > Actions > SHEETS_URL y SHEETS_TOKEN.
@@ -31,7 +32,23 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: 3.47.7
           cache: true
+
+      - name: Firma fija
+        # Android solo deja actualizar la app si cada versión está firmada con
+        # la misma clave. Sin esto, cada armado usaría una clave nueva y el
+        # celular rechazaría la actualización. Si existe el secreto
+        # ANDROID_KEYSTORE_BASE64 se usa ese; si no, la clave de firma/.
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          mkdir -p ~/.android
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > ~/.android/debug.keystore
+          else
+            cp firma/debug.keystore ~/.android/debug.keystore
+          fi
 
       - name: Generar carpeta de Android
         run: |
@@ -66,10 +83,19 @@ jobs:
           # el universal y se baja más fácil desde el celular. arm64 cubre
           # casi todos los Android actuales; armeabi-v7a es para equipos viejos.
           flutter build apk --release --split-per-abi \
+            --build-number=${{ github.run_number }} \
             --dart-define=SHEETS_URL="$SHEETS_URL" \
             --dart-define=SHEETS_TOKEN="$SHEETS_TOKEN"
           cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk consulta-dominio.apk
           cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk consulta-dominio-equipos-viejos.apk
+
+      - name: Comprobar la firma
+        run: |
+          esperada=$(keytool -list -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey | grep 'SHA256:' | head -1 | awk '{print $2}' | tr -d ':' | tr 'A-F' 'a-f')
+          apksigner=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          real=$("$apksigner" verify --print-certs consulta-dominio.apk | grep 'SHA-256 digest' | head -1 | awk '{print $NF}')
+          echo "esperada=$esperada real=$real"
+          test "$esperada" = "$real"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -79,10 +105,12 @@ jobs:
       - name: Publicar en Releases
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ultima-version
-          name: Última versión
+          # Una versión nueva por armado: así nunca se reemplaza un archivo
+          # mientras alguien lo está bajando.
+          tag_name: build-${{ github.run_number }}
+          name: Versión ${{ github.run_number }}
           target_commitish: ${{ github.sha }}
-          prerelease: true
+          make_latest: true
           files: |
             consulta-dominio.apk
             consulta-dominio-equipos-viejos.apk

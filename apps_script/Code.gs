@@ -21,6 +21,9 @@ function doPost(e) {
     if (!token || datos.token !== token) {
       return responder({ ok: false, error: 'clave incorrecta' });
     }
+    if (datos.prueba) {
+      return responder({ ok: true, mensaje: 'Planilla conectada' });
+    }
     if (!datos.dominio || !datos.marca) {
       return responder({ ok: false, error: 'faltan datos' });
     }
@@ -28,7 +31,7 @@ function doPost(e) {
     // El lock evita que dos consultas al mismo tiempo tomen el mismo número.
     lock.waitLock(10000);
     var hoja = obtenerHoja();
-    var indice = hoja.getLastRow(); // la fila 1 es el encabezado
+    var indice = siguienteIndice(hoja);
     hoja.appendRow([
       indice,
       new Date(),
@@ -51,6 +54,26 @@ function doPost(e) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/** Abrir el link en el navegador muestra si el script está publicado. */
+function doGet() {
+  return responder({ ok: true, mensaje: 'El script está publicado. Usá este link en la app.' });
+}
+
+/**
+ * Número correlativo que no se repite aunque se borren filas: se guarda el
+ * último usado en las propiedades del script. Se llama con el lock tomado.
+ */
+function siguienteIndice(hoja) {
+  var props = PropertiesService.getScriptProperties();
+  var ultimo = Number(props.getProperty('ULTIMO_INDICE'));
+  if (!ultimo) {
+    ultimo = Math.max(hoja.getLastRow() - 1, 0); // la fila 1 es el encabezado
+  }
+  var indice = ultimo + 1;
+  props.setProperty('ULTIMO_INDICE', String(indice));
+  return indice;
 }
 
 function obtenerHoja() {

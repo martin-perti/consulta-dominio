@@ -37,13 +37,28 @@ class _EstimadorPageState extends State<EstimadorPage> {
   int _intentos = 0;
   String? _aviso;
 
+  /// Evita que dos tics se pisen si el JavaScript tarda más que el intervalo
+  /// (por ejemplo, que se lea el resultado dos veces y se cierre de más).
+  bool _ocupado = false;
+  bool _terminado = false;
+
   @override
   void initState() {
     super.initState();
     _web = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
-        NavigationDelegate(onPageFinished: (_) => _empezarACompletar()),
+        NavigationDelegate(
+          onPageFinished: (_) => _empezarACompletar(),
+          onWebResourceError: (error) {
+            if (error.isForMainFrame != true || !mounted) return;
+            setState(() {
+              _aviso =
+                  'No pude abrir la página de la DNRPA. Revisá la conexión '
+                  'y volvé a intentar.';
+            });
+          },
+        ),
       )
       ..loadRequest(Uri.parse(Config.estimadorUrl));
   }
@@ -76,6 +91,8 @@ class _EstimadorPageState extends State<EstimadorPage> {
   }
 
   Future<void> _tic() async {
+    if (_ocupado || _terminado) return;
+    _ocupado = true;
     try {
       switch (_paso) {
         case _Paso.completando:
@@ -88,6 +105,8 @@ class _EstimadorPageState extends State<EstimadorPage> {
       }
     } on Exception {
       // La página puede estar navegando; se reintenta en el próximo tic.
+    } finally {
+      _ocupado = false;
     }
   }
 
@@ -118,24 +137,40 @@ class _EstimadorPageState extends State<EstimadorPage> {
 
   Future<void> _buscarResultado() async {
     final json = await _ejecutar(jsLeerResultado);
-    if (json.isEmpty || !mounted) return;
-    setState(() => _paso = _Paso.leyendo);
-    _timer?.cancel();
+    if (!mounted) return;
+    if (json.isEmpty) {
+      // Sin resultado todavía: si la página muestra un error (por ejemplo,
+      // dominio inexistente), se lo mostramos al usuario.
+      final error = await _ejecutar(jsLeerError);
+      if (mounted && error.isNotEmpty && error != 'null' && error != _aviso) {
+        setState(() => _aviso = error);
+      }
+      return;
+    }
 
-    final datos = DatosPagina.fromJson(
-      jsonDecode(json) as Map<String, dynamic>,
-    );
-    final resultado = interpretarResultado(datos, widget.dominio);
+    ResultadoEstimador? resultado;
+    try {
+      final datos = DatosPagina.fromJson(
+        jsonDecode(json) as Map<String, dynamic>,
+      );
+      resultado = interpretarResultado(datos, widget.dominio);
+    } on FormatException {
+      resultado = null;
+    }
     if (!mounted) return;
     if (resultado == null) {
+      // Se sigue mirando la página: si el usuario vuelve atrás y reintenta,
+      // el próximo resultado se lee solo.
       setState(() {
-        _paso = _Paso.esperandoContinuar;
         _aviso =
             'No pude leer los datos del resultado. '
             'Puede que la DNRPA haya cambiado la página.';
       });
       return;
     }
+    _terminado = true;
+    _timer?.cancel();
+    setState(() => _paso = _Paso.leyendo);
     Navigator.of(context).pop(resultado);
   }
 
@@ -149,12 +184,14 @@ class _EstimadorPageState extends State<EstimadorPage> {
     return r.toString();
   }
 
-  String get _instruccion => switch (_paso) {
-    _Paso.cargando => 'Abriendo el estimador de la DNRPA...',
-    _Paso.completando => 'Completando ${widget.dominio}...',
-    _Paso.esperandoContinuar => _aviso ?? 'Revisá los datos y tocá CONTINUAR.',
-    _Paso.leyendo => 'Leyendo el resultado...',
-  };
+  String get _instruccion =>
+      _aviso ??
+      switch (_paso) {
+        _Paso.cargando => 'Abriendo el estimador de la DNRPA...',
+        _Paso.completando => 'Completando ${widget.dominio}...',
+        _Paso.esperandoContinuar => 'Revisá los datos y tocá CONTINUAR.',
+        _Paso.leyendo => 'Leyendo el resultado...',
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -174,7 +211,7 @@ class _EstimadorPageState extends State<EstimadorPage> {
               padding: const EdgeInsets.all(12),
               child: Row(
                 children: [
-                  if (!esperando)
+                  if (!esperando && _aviso == null)
                     const Padding(
                       padding: EdgeInsets.only(right: 12),
                       child: SizedBox.square(
